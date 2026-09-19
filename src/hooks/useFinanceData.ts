@@ -46,7 +46,15 @@ export const qk = {
 };
 
 /** Keys whose data is derived from transactions/accounts and must refetch on writes. */
-const MONEY_KEYS = [qk.dashboard, qk.accounts, qk.accountSummary, qk.transactions];
+const MONEY_KEYS = [
+  qk.dashboard,
+  qk.accounts,
+  qk.accountSummary,
+  qk.transactions,
+  qk.budgets,
+  qk.budgetStatus,
+  qk.insights,
+] as const;
 
 // ---- User ----
 
@@ -139,7 +147,20 @@ export function useUpdateAccount() {
 }
 
 export function useDeleteAccount() {
-  return useRemove((id) => `/accounts/${id}/`, MONEY_KEYS);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/accounts/${id}/`);
+    },
+    onSuccess: async () => {
+      await Promise.all(
+        MONEY_KEYS.map((key) => qc.invalidateQueries({ queryKey: key }))
+      );
+      // Drop stale cached pages so UI can't briefly show deleted history.
+      qc.removeQueries({ queryKey: qk.transactions });
+      qc.removeQueries({ queryKey: qk.dashboard });
+    },
+  });
 }
 
 export type AccountResetResult = {
@@ -155,8 +176,12 @@ export function useResetAccount() {
       const { data } = await api.post<AccountResetResult>(`/accounts/${id}/reset/`);
       return data;
     },
-    onSuccess: () => {
-      MONEY_KEYS.forEach((key) => qc.invalidateQueries({ queryKey: key }));
+    onSuccess: async () => {
+      await Promise.all(
+        MONEY_KEYS.map((key) => qc.invalidateQueries({ queryKey: key }))
+      );
+      qc.removeQueries({ queryKey: qk.transactions });
+      qc.removeQueries({ queryKey: qk.dashboard });
     },
   });
 }
@@ -168,8 +193,12 @@ export function useResetAllAccounts() {
       const { data } = await api.post<AccountResetResult>("/accounts/reset-all/");
       return data;
     },
-    onSuccess: () => {
-      MONEY_KEYS.forEach((key) => qc.invalidateQueries({ queryKey: key }));
+    onSuccess: async () => {
+      await Promise.all(
+        MONEY_KEYS.map((key) => qc.invalidateQueries({ queryKey: key }))
+      );
+      qc.removeQueries({ queryKey: qk.transactions });
+      qc.removeQueries({ queryKey: qk.dashboard });
     },
   });
 }

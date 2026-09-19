@@ -38,7 +38,10 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const { data } = await api.post<AuthResponse>("/auth/register/", form);
+      const { data } = await api.post<AuthResponse>("/auth/register/", {
+        ...form,
+        email: form.email.trim().toLowerCase(),
+      });
       login(data);
       router.push("/onboarding");
     } catch (err) {
@@ -55,11 +58,10 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left — Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center p-12"
-        style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 50%, #3b82f6 100%)" }}>
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-20 right-20 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-32 left-16 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-black items-center justify-center p-12">
+        <div className="absolute inset-0 opacity-40">
+          <div className="absolute top-20 right-20 w-72 h-72 bg-[#5D5FEF]/25 rounded-full blur-3xl" />
+          <div className="absolute bottom-32 left-16 w-96 h-96 bg-[#5D5FEF]/15 rounded-full blur-3xl" />
         </div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -67,13 +69,8 @@ export default function RegisterPage() {
           transition={{ duration: 0.8 }}
           className="relative z-10 text-white max-w-md"
         >
-          <div className="flex items-center gap-3 mb-8">
-            <BrandLogo
-              size={40}
-              withWordmark
-              className="[&_svg]:text-white"
-              wordmarkClassName="text-3xl [&_span:first-child]:text-white/55 [&_span:last-child]:text-white"
-            />
+          <div className="mb-10">
+            <BrandLogo lockup lockupWidth={280} />
           </div>
           <h1 className="text-4xl font-bold leading-tight mb-4">
             Start your journey to
@@ -105,7 +102,7 @@ export default function RegisterPage() {
           className="w-full max-w-md"
         >
           <div className="lg:hidden mb-10">
-            <BrandLogo size={36} withWordmark wordmarkClassName="text-2xl" />
+            <BrandLogo size={40} withWordmark wordmarkClassName="text-2xl" />
           </div>
 
           <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-2">

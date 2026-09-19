@@ -10,9 +10,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Form";
+import { Label, Select } from "@/components/ui/Form";
 import { useToast } from "@/components/ui/Toast";
 import api from "@/lib/api";
 import { getErrorMessage } from "@/lib/apiError";
@@ -41,6 +43,55 @@ function importSummary(data: StatementResult) {
 const ACCEPTED = [".csv", ".xls", ".xlsx", ".pdf"];
 const MAX_BYTES = 10 * 1024 * 1024;
 
+const PDF_PASSWORD_INPUT_CLASS =
+  "w-full px-3.5 py-2.5 pr-11 rounded-xl border border-[var(--border-default)] bg-[var(--surface-bg)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 transition-all";
+
+function PdfPasswordField({
+  label,
+  placeholder,
+  value,
+  visible,
+  onChange,
+  onToggleVisible,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  visible: boolean;
+  onChange: (value: string) => void;
+  onToggleVisible: () => void;
+}) {
+  return (
+    <div>
+      <Label htmlFor="pdf-password">{label}</Label>
+      <div className="relative">
+        <input
+          id="pdf-password"
+          name="password"
+          type={visible ? "text" : "password"}
+          autoComplete="off"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={PDF_PASSWORD_INPUT_CLASS}
+        />
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          aria-label={visible ? "Hide password" : "Show password"}
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        >
+          {visible ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ImportStatementPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -50,6 +101,7 @@ export default function ImportStatementPage() {
   const [file, setFile] = useState<File | null>(null);
   const [accountId, setAccountId] = useState("");
   const [pdfPassword, setPdfPassword] = useState("");
+  const [showPdfPassword, setShowPdfPassword] = useState(false);
   const [savePassword, setSavePassword] = useState(true);
   const [changePassword, setChangePassword] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -110,6 +162,7 @@ export default function ImportStatementPage() {
     setError("");
     setStatement(null);
     setPdfPassword("");
+    setShowPdfPassword(false);
     setChangePassword(false);
     setSavePassword(true);
     setFile(f);
@@ -190,6 +243,7 @@ export default function ImportStatementPage() {
     setFile(null);
     setStatement(null);
     setPdfPassword("");
+    setShowPdfPassword(false);
     setChangePassword(false);
     setSavePassword(true);
     setError("");
@@ -343,14 +397,13 @@ export default function ImportStatementPage() {
                   )}
                   {/password/i.test(statement.error_message || "") ? (
                     <div className="mt-3 space-y-3">
-                      <Input
+                      <PdfPasswordField
                         label="PDF password"
-                        name="password"
-                        type="password"
-                        autoComplete="off"
                         placeholder="Enter the statement password"
                         value={pdfPassword}
-                        onChange={(e) => setPdfPassword(e.target.value)}
+                        visible={showPdfPassword}
+                        onChange={setPdfPassword}
+                        onToggleVisible={() => setShowPdfPassword((v) => !v)}
                       />
                       <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
                         <input
@@ -405,18 +458,17 @@ export default function ImportStatementPage() {
 
                 {showPasswordField && (
                   <>
-                    <Input
+                    <PdfPasswordField
                       label="PDF password"
-                      name="password"
-                      type="password"
-                      autoComplete="off"
                       placeholder={
                         hasSavedPassword && changePassword
                           ? "Enter a new statement password"
                           : "Leave blank if the PDF is not locked"
                       }
                       value={pdfPassword}
-                      onChange={(e) => setPdfPassword(e.target.value)}
+                      visible={showPdfPassword}
+                      onChange={setPdfPassword}
+                      onToggleVisible={() => setShowPdfPassword((v) => !v)}
                     />
                     <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
                       <input

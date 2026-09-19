@@ -75,7 +75,7 @@ export default function AccountsPage() {
   const handleDelete = async (account: Account) => {
     if (
       !window.confirm(
-        `Delete “${account.name}”? Its transactions will be removed from your totals.`
+        `Delete “${account.name}”? This permanently removes the account and all of its transactions from the database.`
       )
     )
       return;
