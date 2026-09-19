@@ -91,8 +91,11 @@ export function AccountModal({ open, onClose, account }: Props) {
     if (isCreditCard && form.credit_limit) {
       payload.credit_limit = Number(form.credit_limit).toFixed(2);
     }
-    // Balance is derived from transactions once the account exists.
+    // Opening balance on create; for credit cards also allow editing outstanding
+    // usage later so the utilisation bar stays accurate.
     if (!account && form.current_balance) {
+      payload.current_balance = Number(form.current_balance).toFixed(2);
+    } else if (account && isCreditCard && form.current_balance !== "") {
       payload.current_balance = Number(form.current_balance).toFixed(2);
     }
 
@@ -195,8 +198,34 @@ export function AccountModal({ open, onClose, account }: Props) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          {!account && (
+        {isCreditCard ? (
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Credit limit"
+              name="credit_limit"
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              placeholder="0.00"
+              value={form.credit_limit}
+              onChange={(e) => set("credit_limit", e.target.value)}
+              error={errors.credit_limit}
+            />
+            <Input
+              label={account ? "Amount used (outstanding)" : "Opening amount used"}
+              name="current_balance"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={form.current_balance}
+              onChange={(e) => set("current_balance", e.target.value)}
+              error={errors.current_balance}
+            />
+          </div>
+        ) : (
+          !account && (
             <Input
               label="Opening balance"
               name="current_balance"
@@ -207,21 +236,21 @@ export function AccountModal({ open, onClose, account }: Props) {
               onChange={(e) => set("current_balance", e.target.value)}
               error={errors.current_balance}
             />
-          )}
-          {isCreditCard && (
-            <Input
-              label="Credit limit"
-              name="credit_limit"
-              type="number"
-              step="0.01"
-              required
-              placeholder="0.00"
-              value={form.credit_limit}
-              onChange={(e) => set("credit_limit", e.target.value)}
-              error={errors.credit_limit}
-            />
-          )}
-        </div>
+          )
+        )}
+
+        {isCreditCard && form.credit_limit && (
+          <p className="text-xs text-[var(--text-muted)] -mt-2">
+            Available credit:{" "}
+            {Math.max(
+              0,
+              Number(form.credit_limit || 0) - Number(form.current_balance || 0)
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
+        )}
 
         <div>
           <p className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">

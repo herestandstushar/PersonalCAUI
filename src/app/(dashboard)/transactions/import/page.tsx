@@ -12,7 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Form";
+import { Input, Select } from "@/components/ui/Form";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState } from "@/components/ui/States";
 import api from "@/lib/api";
@@ -39,12 +39,19 @@ export default function ImportStatementPage() {
 
   const [file, setFile] = useState<File | null>(null);
   const [accountId, setAccountId] = useState("");
+  const [pdfPassword, setPdfPassword] = useState("");
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [statement, setStatement] = useState<StatementResult | null>(null);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isPdf = !!file && file.name.toLowerCase().endsWith(".pdf");
+  const needsPassword =
+    isPdf ||
+    (statement?.status === "failed" &&
+      /password/i.test(statement.error_message || ""));
 
   // Falls back to the default account until the user picks one explicitly.
   const selectedAccount =
@@ -78,6 +85,7 @@ export default function ImportStatementPage() {
     }
     setError("");
     setStatement(null);
+    setPdfPassword("");
     setFile(f);
   };
 
@@ -126,6 +134,7 @@ export default function ImportStatementPage() {
     const body = new FormData();
     body.append("file", file);
     body.append("account", selectedAccount);
+    if (pdfPassword) body.append("password", pdfPassword);
 
     try {
       const { data } = await api.post<StatementResult>("/statements/", body, {
@@ -144,6 +153,7 @@ export default function ImportStatementPage() {
     stopPolling();
     setFile(null);
     setStatement(null);
+    setPdfPassword("");
     setError("");
   };
 
@@ -283,7 +293,7 @@ export default function ImportStatementPage() {
             ) : statement?.status === "failed" ? (
               <div className="mt-5 p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/40 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-red-700 dark:text-red-400">
                     We couldn&apos;t parse this statement.
                   </p>
@@ -292,9 +302,31 @@ export default function ImportStatementPage() {
                       {statement.error_message}
                     </p>
                   )}
-                  <Button variant="secondary" className="mt-3" onClick={reset}>
-                    Try another file
-                  </Button>
+                  {/password/i.test(statement.error_message || "") ? (
+                    <div className="mt-3 space-y-3">
+                      <Input
+                        label="PDF password"
+                        name="password"
+                        type="password"
+                        autoComplete="off"
+                        placeholder="Enter the statement password"
+                        value={pdfPassword}
+                        onChange={(e) => setPdfPassword(e.target.value)}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button onClick={upload} loading={uploading}>
+                          Unlock and import
+                        </Button>
+                        <Button variant="secondary" onClick={reset}>
+                          Try another file
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button variant="secondary" className="mt-3" onClick={reset}>
+                      Try another file
+                    </Button>
+                  )}
                 </div>
               </div>
             ) : processing ? (
@@ -303,14 +335,27 @@ export default function ImportStatementPage() {
                 Parsing your statement — this usually takes a few seconds.
               </div>
             ) : (
-              <Button
-                className="w-full mt-5"
-                onClick={upload}
-                loading={uploading}
-              >
-                <Upload className="w-4 h-4" />
-                Upload and import
-              </Button>
+              <div className="mt-5 space-y-4">
+                {needsPassword && (
+                  <Input
+                    label="PDF password"
+                    name="password"
+                    type="password"
+                    autoComplete="off"
+                    placeholder="Leave blank if the PDF is not locked"
+                    value={pdfPassword}
+                    onChange={(e) => setPdfPassword(e.target.value)}
+                  />
+                )}
+                <Button
+                  className="w-full"
+                  onClick={upload}
+                  loading={uploading}
+                >
+                  <Upload className="w-4 h-4" />
+                  Upload and import
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -327,6 +372,8 @@ export default function ImportStatementPage() {
           </li>
           <li>
             CSV files parse most reliably; PDFs depend on the bank&apos;s layout.
+            Password-protected PDFs are supported — enter the password when
+            prompted.
           </li>
           <li>
             Transactions are auto-categorised, and duplicates within 24 hours are

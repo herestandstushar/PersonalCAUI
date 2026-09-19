@@ -214,6 +214,11 @@ export default function AccountsPage() {
                     account.currency_detail?.code ?? currency
                   )}
                 </p>
+                {isCredit && (
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    Outstanding / amount used
+                  </p>
+                )}
 
                 {isCredit && account.credit_limit && (
                   <div className="mt-4">
