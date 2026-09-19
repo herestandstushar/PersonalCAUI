@@ -157,7 +157,19 @@ export default function ImportStatementPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setStatement(data);
-      pollStatus(data.id);
+      if (data.status === "completed") {
+        queryClient.invalidateQueries({ queryKey: qk.transactions });
+        queryClient.invalidateQueries({ queryKey: qk.dashboard });
+        queryClient.invalidateQueries({ queryKey: qk.accounts });
+        toast(
+          `Imported ${data.transactions_imported} transactions.`,
+          "success"
+        );
+      } else if (data.status === "failed") {
+        toast("Statement could not be parsed.", "error");
+      } else {
+        pollStatus(data.id);
+      }
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -444,6 +456,10 @@ export default function ImportStatementPage() {
           Tips for a clean import
         </h3>
         <ul className="space-y-2 text-sm text-[var(--text-muted)] list-disc pl-5">
+          <li>
+            Leave Account blank (recommended) for ICICI / HDFC PDFs — the bank and
+            account are detected from the file. Selecting an account is optional.
+          </li>
           <li>
             ICICI and HDFC Bank PDFs are detected automatically — bank name,
             account number and transactions are read from the file.
