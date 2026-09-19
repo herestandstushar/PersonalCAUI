@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Form";
 import { useToast } from "@/components/ui/Toast";
-import { EmptyState } from "@/components/ui/States";
 import api from "@/lib/api";
 import { getErrorMessage } from "@/lib/apiError";
 import { qk, useAccounts } from "@/hooks/useFinanceData";
@@ -53,12 +52,15 @@ export default function ImportStatementPage() {
     (statement?.status === "failed" &&
       /password/i.test(statement.error_message || ""));
 
-  // Falls back to the default account until the user picks one explicitly.
+  // PDFs can auto-detect/create the account; CSV/Excel still need one selected.
   const selectedAccount =
     accountId ||
-    accounts.find((a) => a.is_default)?.id ||
-    accounts[0]?.id ||
-    "";
+    (!isPdf
+      ? accounts.find((a) => a.is_default)?.id || accounts[0]?.id || ""
+      : "");
+
+  const canUpload =
+    !!file && (isPdf || !!selectedAccount);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -127,13 +129,13 @@ export default function ImportStatementPage() {
   };
 
   const upload = async () => {
-    if (!file || !selectedAccount) return;
+    if (!file || !canUpload) return;
     setUploading(true);
     setError("");
 
     const body = new FormData();
     body.append("file", file);
-    body.append("account", selectedAccount);
+    if (selectedAccount) body.append("account", selectedAccount);
     if (pdfPassword) body.append("password", pdfPassword);
 
     try {
@@ -160,27 +162,6 @@ export default function ImportStatementPage() {
   const processing =
     statement?.status === "pending" || statement?.status === "processing";
 
-  if (accounts.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-            Import Statement
-          </h1>
-          <p className="text-[var(--text-muted)] mt-1">
-            Upload a bank statement and we&apos;ll extract the transactions.
-          </p>
-        </div>
-        <EmptyState
-          title="Add an account first"
-          description="Imported transactions need an account to attach to. Create one, then come back here."
-          actionLabel="Go to Accounts"
-          onAction={() => router.push("/accounts")}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
@@ -188,8 +169,8 @@ export default function ImportStatementPage() {
           Import Statement
         </h1>
         <p className="text-[var(--text-muted)] mt-1">
-          Upload a CSV, Excel or PDF bank statement and we&apos;ll extract the
-          transactions automatically.
+          Upload a bank PDF and we&apos;ll detect the bank, create the account if
+          needed, and import the transactions. CSV/Excel still work too.
         </p>
       </div>
 
@@ -202,13 +183,26 @@ export default function ImportStatementPage() {
 
       <div className="card p-6 space-y-5">
         <Select
-          label="Import into account"
+          label={isPdf ? "Account (optional)" : "Import into account"}
           name="account"
-          required
-          value={selectedAccount}
+          required={!isPdf}
+          value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+          placeholder={
+            isPdf
+              ? "Auto-detect from PDF (recommended)"
+              : accounts.length
+                ? "Select an account"
+                : "Create an account first for CSV/Excel"
+          }
         />
+        {isPdf && (
+          <p className="text-xs text-[var(--text-muted)] -mt-3">
+            Leave blank to detect ICICI (and supported banks), create the account
+            automatically, then import transactions.
+          </p>
+        )}
 
         {!file ? (
           <div
@@ -232,7 +226,8 @@ export default function ImportStatementPage() {
               Drag and drop your statement here
             </p>
             <p className="text-sm text-[var(--text-muted)] mt-1 mb-5">
-              CSV, XLS, XLSX or PDF · up to 10 MB
+              Prefer PDF for auto bank detection · CSV/XLS also supported · up to
+              10 MB
             </p>
             <Button variant="secondary" onClick={() => inputRef.current?.click()}>
               Browse files
@@ -351,9 +346,12 @@ export default function ImportStatementPage() {
                   className="w-full"
                   onClick={upload}
                   loading={uploading}
+                  disabled={!canUpload}
                 >
                   <Upload className="w-4 h-4" />
-                  Upload and import
+                  {isPdf && !selectedAccount
+                    ? "Detect bank and import"
+                    : "Upload and import"}
                 </Button>
               </div>
             )}
@@ -367,17 +365,18 @@ export default function ImportStatementPage() {
         </h3>
         <ul className="space-y-2 text-sm text-[var(--text-muted)] list-disc pl-5">
           <li>
-            Export your statement directly from your bank rather than editing it
-            by hand.
+            ICICI Bank PDFs are detected automatically — bank name, account
+            number and transactions are read from the file.
           </li>
           <li>
-            CSV files parse most reliably; PDFs depend on the bank&apos;s layout.
+            If the account doesn&apos;t exist yet, FinSight creates it for you.
+          </li>
+          <li>
             Password-protected PDFs are supported — enter the password when
             prompted.
           </li>
           <li>
-            Transactions are auto-categorised, and duplicates within 24 hours are
-            flagged rather than double-counted.
+            CSV/Excel still work; pick an account first for those formats.
           </li>
         </ul>
       </div>
