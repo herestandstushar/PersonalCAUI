@@ -503,8 +503,12 @@ export default function DashboardPage() {
             {merchants.length === 0 ? (
               <EmptyChart message="No merchant data yet." />
             ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={merchants} layout="vertical">
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={merchants}
+                  layout="vertical"
+                  margin={{ top: 4, right: 12, left: 8, bottom: 4 }}
+                >
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="var(--border-default)"
@@ -515,23 +519,26 @@ export default function DashboardPage() {
                     tick={{ fill: "var(--text-muted)", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                    tickFormatter={(v) =>
+                      v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`
+                    }
                   />
                   <YAxis
                     type="category"
                     dataKey="name"
-                    tick={{ fill: "var(--text-secondary)", fontSize: 12 }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
-                    width={80}
+                    width={130}
+                    interval={0}
                   />
                   <Tooltip content={<CustomTooltip currency={currency} />} />
                   <Bar
                     dataKey="total"
                     name="Spent"
-                    fill="#6366f1"
+                    fill="#0f766e"
                     radius={[0, 6, 6, 0]}
-                    barSize={20}
+                    barSize={18}
                   />
                 </BarChart>
               </ResponsiveContainer>

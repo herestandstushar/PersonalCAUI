@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useMe } from "@/hooks/useFinanceData";
 import { getAccessToken } from "@/lib/api";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 /**
  * Blocks dashboard routes until a valid session is confirmed.
@@ -57,9 +57,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 function FullPageLoader() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[var(--surface-bg)]">
-      <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center animate-pulse">
-        <Sparkles className="w-7 h-7 text-white" />
-      </div>
+      <BrandLogo size={48} className="animate-pulse" />
       <p className="text-sm text-[var(--text-muted)]">Loading your workspace…</p>
     </div>
   );

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Sparkles } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/uiStore";
 import { bottomNav, navigation } from "@/lib/navigation";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -20,21 +21,11 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-[var(--border-default)]">
-        <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
-          <Sparkles className="w-5 h-5 text-white" />
-        </div>
-        <AnimatePresence>
-          {!sidebarCollapsed && (
-            <motion.span
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: "auto" }}
-              exit={{ opacity: 0, width: 0 }}
-              className="text-lg font-bold text-[var(--text-primary)] whitespace-nowrap overflow-hidden"
-            >
-              FinSight
-            </motion.span>
-          )}
-        </AnimatePresence>
+        <BrandLogo
+          size={28}
+          withWordmark={!sidebarCollapsed}
+          wordmarkClassName="text-lg"
+        />
       </div>
 
       {/* Navigation */}

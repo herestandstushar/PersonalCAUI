@@ -56,7 +56,7 @@ export default function ReportsPage() {
     isLoading,
     isError,
     refetch,
-  } = useTransactions({ date_from: from, date_to: to });
+  } = useTransactions({ date_from: from, date_to: to, page_size: 500 });
 
   const currency = user?.default_currency?.code ?? "USD";
 

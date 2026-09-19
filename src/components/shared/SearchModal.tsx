@@ -31,7 +31,9 @@ export function SearchModal({
   }, [query]);
 
   const { data: transactions = [], isFetching } = useTransactions(
-    debounced.length >= 2 ? { search: debounced } : undefined
+    debounced.length >= 2
+      ? { search: debounced, page_size: 10 }
+      : undefined
   );
 
   const pages = useMemo(() => {

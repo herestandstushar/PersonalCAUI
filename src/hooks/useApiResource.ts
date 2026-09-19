@@ -8,6 +8,7 @@
 "use client";
 
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -22,6 +23,14 @@ export function unwrapList<T>(payload: PaginatedResponse<T> | T[]): T[] {
   return payload?.data ?? [];
 }
 
+export function unwrapPage<T>(payload: PaginatedResponse<T> | T[]): {
+  items: T[];
+  meta: PaginatedResponse<T>["meta"] | null;
+} {
+  if (Array.isArray(payload)) return { items: payload, meta: null };
+  return { items: payload?.data ?? [], meta: payload?.meta ?? null };
+}
+
 export function useList<T>(
   key: readonly unknown[],
   url: string,
@@ -31,9 +40,37 @@ export function useList<T>(
   return useQuery<T[]>({
     queryKey: [...key, params ?? {}],
     queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<T> | T[]>(url, { params });
+      const { data } = await api.get<PaginatedResponse<T> | T[]>(url, {
+        params,
+      });
       return unwrapList<T>(data);
     },
+    placeholderData: keepPreviousData,
+    ...options,
+  });
+}
+
+export function usePaginatedList<T>(
+  key: readonly unknown[],
+  url: string,
+  params?: Record<string, unknown>,
+  options?: Omit<
+    UseQueryOptions<{
+      items: T[];
+      meta: PaginatedResponse<T>["meta"] | null;
+    }>,
+    "queryKey" | "queryFn"
+  >
+) {
+  return useQuery({
+    queryKey: [...key, "paged", params ?? {}],
+    queryFn: async () => {
+      const { data } = await api.get<PaginatedResponse<T> | T[]>(url, {
+        params,
+      });
+      return unwrapPage<T>(data);
+    },
+    placeholderData: keepPreviousData,
     ...options,
   });
 }

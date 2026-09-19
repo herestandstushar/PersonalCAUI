@@ -47,7 +47,10 @@ export default function AnalyticsPage() {
     return d.toISOString().slice(0, 10);
   }, [range]);
 
-  const { data: transactions = [] } = useTransactions({ date_from: dateFrom });
+  const { data: transactions = [] } = useTransactions({
+    date_from: dateFrom,
+    page_size: 500,
+  });
 
   const currency = user?.default_currency?.code ?? "USD";
 

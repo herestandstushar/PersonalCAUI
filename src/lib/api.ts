@@ -19,7 +19,8 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000,
+  // Neon (remote Postgres) + list endpoints can exceed 30s on cold paths.
+  timeout: 60000,
 });
 
 // ---- Token Management ----

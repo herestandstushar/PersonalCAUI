@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Sparkles, Check, X } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Check, X } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import api from "@/lib/api";
 import { getErrorMessage } from "@/lib/apiError";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import type { AuthResponse } from "@/types/auth";
 
 export default function RegisterPage() {
@@ -67,10 +68,12 @@ export default function RegisterPage() {
           className="relative z-10 text-white max-w-md"
         >
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Sparkles className="w-7 h-7" />
-            </div>
-            <span className="text-3xl font-bold tracking-tight">FinSight</span>
+            <BrandLogo
+              size={40}
+              withWordmark
+              className="[&_svg]:text-white"
+              wordmarkClassName="text-3xl [&_span:first-child]:text-white/55 [&_span:last-child]:text-white"
+            />
           </div>
           <h1 className="text-4xl font-bold leading-tight mb-4">
             Start your journey to
@@ -101,11 +104,8 @@ export default function RegisterPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="w-full max-w-md"
         >
-          <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-[var(--text-primary)]">FinSight</span>
+          <div className="lg:hidden mb-10">
+            <BrandLogo size={36} withWordmark wordmarkClassName="text-2xl" />
           </div>
 
           <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -11,6 +11,8 @@ import {
   Pencil,
   Trash2,
   ArrowLeftRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Form";
@@ -30,6 +32,15 @@ import type { Transaction } from "@/types/transaction";
 
 type SortKey = "date" | "amount";
 
+function useDebounced<T>(value: T, ms = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(value), ms);
+    return () => window.clearTimeout(id);
+  }, [value, ms]);
+  return debounced;
+}
+
 export default function TransactionsPage() {
   const { toast } = useToast();
   const { data: user } = useMe();
@@ -37,37 +48,48 @@ export default function TransactionsPage() {
   const remove = useDeleteTransaction();
 
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounced(search, 350);
   const [type, setType] = useState("");
   const [category, setCategory] = useState("");
+  const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [sortDesc, setSortDesc] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
+  // Reset to first page whenever filters change.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, type, category]);
+
+  const ordering =
+    sortBy === "amount"
+      ? sortDesc
+        ? "-amount,-date"
+        : "amount,-date"
+      : sortDesc
+        ? "-date,-created_at"
+        : "date,-created_at";
+
   const {
     data: transactions = [],
+    meta,
     isLoading,
+    isFetching,
     isError,
     refetch,
   } = useTransactions({
-    search: search.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
     transaction_type: (type || undefined) as never,
     category: category || undefined,
+    page,
+    page_size: 40,
+    ordering,
   });
 
-  const currency = user?.default_currency?.code ?? "USD";
+  const totalPages = meta?.total_pages ?? 1;
 
-  const sorted = useMemo(() => {
-    const copy = [...transactions];
-    copy.sort((a, b) => {
-      const diff =
-        sortBy === "amount"
-          ? Number(a.amount) - Number(b.amount)
-          : new Date(a.date).getTime() - new Date(b.date).getTime();
-      return sortDesc ? -diff : diff;
-    });
-    return copy;
-  }, [transactions, sortBy, sortDesc]);
+  const currency = user?.default_currency?.code ?? "USD";
 
   const totals = useMemo(() => {
     let income = 0;
@@ -103,15 +125,15 @@ export default function TransactionsPage() {
     }
   };
 
-  if (isError)
+  if (isError && !transactions.length)
     return (
       <ErrorState
-        message="We couldn't load your transactions."
+        message="We couldn't load your transactions. The connection may be slow — try again."
         onRetry={() => refetch()}
       />
     );
 
-  const hasFilters = Boolean(search.trim() || type || category);
+  const hasFilters = Boolean(debouncedSearch.trim() || type || category);
 
   return (
     <div className="space-y-6">
@@ -122,6 +144,7 @@ export default function TransactionsPage() {
           </h1>
           <p className="text-[var(--text-muted)] mt-1">
             Every movement of money across your accounts.
+            {meta?.count != null ? ` · ${meta.count} total` : ""}
           </p>
         </div>
         <div className="flex gap-3">
@@ -140,13 +163,12 @@ export default function TransactionsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Income", value: totals.income, accent: "amount-positive" },
-          { label: "Expenses", value: totals.expense, accent: "amount-negative" },
+          { label: "Income (this page)", value: totals.income, accent: "amount-positive" },
+          { label: "Expenses (this page)", value: totals.expense, accent: "amount-negative" },
           {
-            label: "Net",
+            label: "Net (this page)",
             value: totals.net,
-            accent:
-              totals.net >= 0 ? "amount-positive" : "amount-negative",
+            accent: totals.net >= 0 ? "amount-positive" : "amount-negative",
           },
         ].map((s) => (
           <div key={s.label} className="card p-5">
@@ -160,7 +182,6 @@ export default function TransactionsPage() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="card p-4 flex flex-col lg:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
@@ -203,7 +224,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && !transactions.length ? (
         <div className="card divide-y divide-[var(--border-default)]">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="p-4">
@@ -212,7 +233,7 @@ export default function TransactionsPage() {
             </div>
           ))}
         </div>
-      ) : sorted.length === 0 ? (
+      ) : transactions.length === 0 ? (
         <EmptyState
           icon={ArrowLeftRight}
           title={hasFilters ? "No matching transactions" : "No transactions yet"}
@@ -225,14 +246,18 @@ export default function TransactionsPage() {
           onAction={hasFilters ? undefined : openCreate}
         />
       ) : (
-        <div className="card overflow-hidden">
+        <div
+          className={`card overflow-hidden relative ${
+            isFetching ? "opacity-80" : ""
+          }`}
+        >
           <div className="divide-y divide-[var(--border-default)]">
-            {sorted.map((t, i) => (
+            {transactions.map((t, i) => (
               <motion.div
                 key={t.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: Math.min(i * 0.02, 0.3) }}
+                transition={{ delay: Math.min(i * 0.015, 0.2) }}
                 className="flex items-center gap-4 p-4 hover:bg-[var(--surface-hover)] transition-colors group"
               >
                 <div
@@ -303,6 +328,32 @@ export default function TransactionsPage() {
               </motion.div>
             ))}
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 p-4 border-t border-[var(--border-default)]">
+              <p className="text-sm text-[var(--text-muted)]">
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={page <= 1 || isFetching}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={page >= totalPages || isFetching}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

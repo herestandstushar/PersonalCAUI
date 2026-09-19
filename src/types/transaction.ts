@@ -32,12 +32,12 @@ export interface Category {
   icon: string;
   color: string;
   category_type: "expense" | "income" | "transfer";
-  parent: string | null;
-  is_system: boolean;
-  keywords: string[];
-  sort_order: number;
-  subcategories: Category[];
-  created_at: string;
+  parent?: string | null;
+  is_system?: boolean;
+  keywords?: string[];
+  sort_order?: number;
+  subcategories?: Category[];
+  created_at?: string;
 }
 
 export interface Transaction {
@@ -103,4 +103,7 @@ export interface TransactionFilters {
   account?: string;
   search?: string;
   is_recurring?: boolean;
+  page?: number;
+  page_size?: number;
+  ordering?: string;
 }

@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Check, Wallet } from "lucide-react";
+import { ArrowRight, Check, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Form";
 import { useToast } from "@/components/ui/Toast";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import {
   useCompleteOnboarding,
   useCreateAccount,
@@ -80,12 +81,7 @@ export default function OnboardingPage() {
         className="w-full max-w-lg"
       >
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-11 h-11 rounded-xl gradient-primary flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-2xl font-bold text-[var(--text-primary)]">
-            FinSight
-          </span>
+          <BrandLogo size={40} withWordmark wordmarkClassName="text-2xl" />
         </div>
 
         <div className="card p-7">

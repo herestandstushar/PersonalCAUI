@@ -15,6 +15,12 @@ export const metadata: Metadata = {
     "investment",
     "money management",
   ],
+  applicationName: "FinSight",
+  icons: {
+    icon: [{ url: "/brand/finsight-icon.png", type: "image/png", sizes: "512x512" }],
+    shortcut: ["/brand/finsight-icon.png"],
+    apple: [{ url: "/brand/finsight-icon.png", type: "image/png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({

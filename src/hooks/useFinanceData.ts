@@ -10,6 +10,7 @@ import {
   useCreate,
   useDetail,
   useList,
+  usePaginatedList,
   useRemove,
   useUpdate,
 } from "./useApiResource";
@@ -50,7 +51,11 @@ const MONEY_KEYS = [qk.dashboard, qk.accounts, qk.accountSummary, qk.transaction
 // ---- User ----
 
 export function useMe(enabled = true) {
-  return useDetail<User>(qk.me, "/users/me/", { enabled, retry: false });
+  return useDetail<User>(qk.me, "/users/me/", {
+    enabled,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
 export function useUpdateMe() {
@@ -103,17 +108,23 @@ export function useCompleteOnboarding() {
 // ---- Dashboard ----
 
 export function useDashboard() {
-  return useDetail<DashboardData>(qk.dashboard, "/dashboard/");
+  return useDetail<DashboardData>(qk.dashboard, "/dashboard/", {
+    staleTime: 60 * 1000,
+  });
 }
 
 // ---- Accounts ----
 
 export function useAccounts() {
-  return useList<Account>(qk.accounts, "/accounts/");
+  return useList<Account>(qk.accounts, "/accounts/", undefined, {
+    staleTime: 2 * 60 * 1000,
+  });
 }
 
 export function useAccountSummary() {
-  return useDetail<AccountSummary>(qk.accountSummary, "/accounts/summary/");
+  return useDetail<AccountSummary>(qk.accountSummary, "/accounts/summary/", {
+    staleTime: 2 * 60 * 1000,
+  });
 }
 
 export function useCreateAccount() {
@@ -131,6 +142,38 @@ export function useDeleteAccount() {
   return useRemove((id) => `/accounts/${id}/`, MONEY_KEYS);
 }
 
+export type AccountResetResult = {
+  accounts_reset: number;
+  transactions_cleared: number;
+  statements_cleared: number;
+};
+
+export function useResetAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post<AccountResetResult>(`/accounts/${id}/reset/`);
+      return data;
+    },
+    onSuccess: () => {
+      MONEY_KEYS.forEach((key) => qc.invalidateQueries({ queryKey: key }));
+    },
+  });
+}
+
+export function useResetAllAccounts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<AccountResetResult>("/accounts/reset-all/");
+      return data;
+    },
+    onSuccess: () => {
+      MONEY_KEYS.forEach((key) => qc.invalidateQueries({ queryKey: key }));
+    },
+  });
+}
+
 // ---- Categories ----
 
 export function useCategories() {
@@ -142,13 +185,38 @@ export function useCategories() {
 // ---- Transactions ----
 
 export function useTransactions(filters?: TransactionFilters) {
-  const params: Record<string, unknown> = { page_size: 100 };
+  const params: Record<string, unknown> = {
+    page_size: filters?.page_size ?? 40,
+    page: filters?.page ?? 1,
+    ordering: filters?.ordering ?? "-date,-created_at",
+  };
   if (filters) {
     Object.entries(filters).forEach(([k, v]) => {
-      if (v !== undefined && v !== "" && v !== null) params[k] = v;
+      if (
+        k === "page" ||
+        k === "page_size" ||
+        k === "ordering" ||
+        v === undefined ||
+        v === "" ||
+        v === null
+      ) {
+        return;
+      }
+      params[k] = v;
     });
   }
-  return useList<Transaction>(qk.transactions, "/transactions/", params);
+  const query = usePaginatedList<Transaction>(
+    qk.transactions,
+    "/transactions/",
+    params,
+    { staleTime: 30 * 1000 }
+  );
+  return {
+    ...query,
+    /** Flat list for existing call sites. */
+    data: query.data?.items ?? [],
+    meta: query.data?.meta ?? null,
+  };
 }
 
 export function useCreateTransaction() {

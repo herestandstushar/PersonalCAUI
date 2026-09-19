@@ -11,6 +11,7 @@ import {
   Building2,
   Pencil,
   Trash2,
+  RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +23,8 @@ import {
   useAccounts,
   useDeleteAccount,
   useMe,
+  useResetAccount,
+  useResetAllAccounts,
 } from "@/hooks/useFinanceData";
 import { formatCurrency } from "@/lib/currency";
 import { getErrorMessage } from "@/lib/apiError";
@@ -49,11 +52,15 @@ export default function AccountsPage() {
   const { data: accounts = [], isLoading, isError, refetch } = useAccounts();
   const { data: summary } = useAccountSummary();
   const remove = useDeleteAccount();
+  const resetOne = useResetAccount();
+  const resetAll = useResetAllAccounts();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
 
   const currency = user?.default_currency?.code ?? "USD";
+  const resetting =
+    resetOne.isPending || resetAll.isPending || remove.isPending;
 
   const openCreate = () => {
     setEditing(null);
@@ -80,6 +87,47 @@ export default function AccountsPage() {
     }
   };
 
+  const handleReset = async (account: Account) => {
+    if (
+      !window.confirm(
+        `Reset “${account.name}”? This clears all transactions and statement imports for this account and sets the balance to 0. The account itself stays.`
+      )
+    )
+      return;
+    try {
+      const result = await resetOne.mutateAsync(account.id);
+      toast(
+        `Cleared ${result.transactions_cleared} transactions from “${account.name}”.`
+      );
+    } catch (err) {
+      toast(getErrorMessage(err), "error");
+    }
+  };
+
+  const handleResetAll = async () => {
+    if (accounts.length === 0) return;
+    if (
+      !window.confirm(
+        `Reset ALL ${accounts.length} accounts? This clears every transaction and statement import, and sets all balances to 0. Accounts themselves stay.`
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        "This cannot be undone from the app. Continue only if you are sure."
+      )
+    )
+      return;
+    try {
+      const result = await resetAll.mutateAsync();
+      toast(
+        `Reset ${result.accounts_reset} accounts (${result.transactions_cleared} transactions cleared).`
+      );
+    } catch (err) {
+      toast(getErrorMessage(err), "error");
+    }
+  };
+
   if (isError)
     return (
       <ErrorState
@@ -99,10 +147,22 @@ export default function AccountsPage() {
             All your bank accounts, cards and wallets in one place.
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4" />
-          Add Account
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {accounts.length > 0 && (
+            <Button
+              variant="secondary"
+              onClick={handleResetAll}
+              disabled={resetting}
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset all history
+            </Button>
+          )}
+          <Button onClick={openCreate}>
+            <Plus className="w-4 h-4" />
+            Add Account
+          </Button>
+        </div>
       </div>
 
       {summary && (
@@ -168,6 +228,15 @@ export default function AccountsPage() {
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
+                      onClick={() => handleReset(account)}
+                      disabled={resetting}
+                      aria-label={`Reset ${account.name} history`}
+                      title="Clear transactions"
+                      className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => openEdit(account)}
                       aria-label={`Edit ${account.name}`}
                       className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
@@ -176,6 +245,7 @@ export default function AccountsPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(account)}
+                      disabled={resetting}
                       aria-label={`Delete ${account.name}`}
                       className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
                     >

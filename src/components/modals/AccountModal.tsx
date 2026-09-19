@@ -100,11 +100,8 @@ export function AccountModal({ open, onClose, account }: Props) {
     if (isCreditCard && form.credit_limit) {
       payload.credit_limit = Number(form.credit_limit).toFixed(2);
     }
-    // Opening balance on create; for credit cards also allow editing outstanding
-    // usage later so the utilisation bar stays accurate.
-    if (!account && form.current_balance) {
-      payload.current_balance = Number(form.current_balance).toFixed(2);
-    } else if (account && isCreditCard && form.current_balance !== "") {
+    // Allow setting/correcting balance on create and edit for every account type.
+    if (form.current_balance !== "") {
       payload.current_balance = Number(form.current_balance).toFixed(2);
     }
 
@@ -272,18 +269,22 @@ export function AccountModal({ open, onClose, account }: Props) {
             />
           </div>
         ) : (
-          !account && (
-            <Input
-              label="Opening balance"
-              name="current_balance"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={form.current_balance}
-              onChange={(e) => set("current_balance", e.target.value)}
-              error={errors.current_balance}
-            />
-          )
+          <Input
+            label={account ? "Current balance" : "Opening balance"}
+            name="current_balance"
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+            value={form.current_balance}
+            onChange={(e) => set("current_balance", e.target.value)}
+            error={errors.current_balance}
+          />
+        )}
+        {!isCreditCard && account && (
+          <p className="text-xs text-[var(--text-muted)] -mt-2">
+            Set this to match your real bank balance (for example 17000). Future
+            transactions will adjust from this amount.
+          </p>
         )}
 
         {isCreditCard && form.credit_limit && (

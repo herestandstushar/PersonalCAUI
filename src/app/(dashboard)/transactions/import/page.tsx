@@ -23,8 +23,19 @@ interface StatementResult {
   id: string;
   status: "pending" | "processing" | "completed" | "failed";
   transactions_imported: number;
+  transactions_skipped: number;
   error_message: string;
   filename: string;
+}
+
+function importSummary(data: StatementResult) {
+  const parts = [`Imported ${data.transactions_imported} transactions`];
+  if (data.transactions_skipped > 0) {
+    parts.push(
+      `skipped ${data.transactions_skipped} already on this account`
+    );
+  }
+  return `${parts.join("; ")}.`;
 }
 
 const ACCEPTED = [".csv", ".xls", ".xlsx", ".pdf"];
@@ -126,10 +137,7 @@ export default function ImportStatementPage() {
             queryClient.invalidateQueries({ queryKey: qk.transactions });
             queryClient.invalidateQueries({ queryKey: qk.dashboard });
             queryClient.invalidateQueries({ queryKey: qk.accounts });
-            toast(
-              `Imported ${data.transactions_imported} transactions.`,
-              "success"
-            );
+            toast(importSummary(data), "success");
           } else {
             toast("Statement could not be parsed.", "error");
           }
@@ -137,7 +145,7 @@ export default function ImportStatementPage() {
       } catch {
         stopPolling();
       }
-      if (attempts > 40) stopPolling();
+      if (attempts > 80) stopPolling();
     }, 1500);
   };
 
@@ -155,16 +163,16 @@ export default function ImportStatementPage() {
     try {
       const { data } = await api.post<StatementResult>("/statements/", body, {
         headers: { "Content-Type": "multipart/form-data" },
+        // Parse + import can take a while on first response; we usually get
+        // pending immediately and poll, but keep headroom for large PDFs.
+        timeout: 120000,
       });
       setStatement(data);
       if (data.status === "completed") {
         queryClient.invalidateQueries({ queryKey: qk.transactions });
         queryClient.invalidateQueries({ queryKey: qk.dashboard });
         queryClient.invalidateQueries({ queryKey: qk.accounts });
-        toast(
-          `Imported ${data.transactions_imported} transactions.`,
-          "success"
-        );
+        toast(importSummary(data), "success");
       } else if (data.status === "failed") {
         toast("Statement could not be parsed.", "error");
       } else {
@@ -310,7 +318,7 @@ export default function ImportStatementPage() {
                 <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                    Imported {statement.transactions_imported} transactions.
+                    {importSummary(statement)}
                   </p>
                   <Button
                     variant="secondary"
