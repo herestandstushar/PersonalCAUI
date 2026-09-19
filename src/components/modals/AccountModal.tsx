@@ -31,6 +31,8 @@ const EMPTY = {
   credit_limit: "",
   color: CHART_COLORS[0] as string,
   notes: "",
+  statement_password: "",
+  clear_statement_password: false,
 };
 
 export function AccountModal({ open, onClose, account }: Props) {
@@ -57,13 +59,15 @@ export function AccountModal({ open, onClose, account }: Props) {
         credit_limit: String(account.credit_limit ?? ""),
         color: account.color || CHART_COLORS[0],
         notes: account.notes ?? "",
+        statement_password: "",
+        clear_statement_password: false,
       });
     } else {
       setForm({ ...EMPTY });
     }
   });
 
-  const set = (key: string, value: string) =>
+  const set = (key: string, value: string | boolean) =>
     setForm((f) => ({ ...f, [key]: value }));
 
   const isCreditCard = form.account_type === "credit_card";
@@ -88,6 +92,11 @@ export function AccountModal({ open, onClose, account }: Props) {
     };
     if (form.currency) payload.currency = Number(form.currency);
     if (form.account_number) payload.account_number = form.account_number;
+    if (form.clear_statement_password) {
+      payload.clear_statement_password = true;
+    } else if (form.statement_password) {
+      payload.statement_password = form.statement_password;
+    }
     if (isCreditCard && form.credit_limit) {
       payload.credit_limit = Number(form.credit_limit).toFixed(2);
     }
@@ -196,6 +205,44 @@ export function AccountModal({ open, onClose, account }: Props) {
             onChange={(e) => set("account_number", e.target.value)}
             error={errors.account_number}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Input
+            label="PDF statement password"
+            name="statement_password"
+            type="password"
+            autoComplete="off"
+            placeholder={
+              account?.has_statement_password
+                ? "Enter a new password to change"
+                : "Optional — used to unlock bank PDFs"
+            }
+            value={form.statement_password}
+            onChange={(e) => {
+              set("statement_password", e.target.value);
+              if (e.target.value) set("clear_statement_password", false);
+            }}
+            error={errors.statement_password}
+          />
+          {account?.has_statement_password && (
+            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+              <input
+                type="checkbox"
+                checked={form.clear_statement_password}
+                onChange={(e) => {
+                  set("clear_statement_password", e.target.checked);
+                  if (e.target.checked) set("statement_password", "");
+                }}
+                className="rounded border-[var(--border-default)]"
+              />
+              Remove saved statement password
+            </label>
+          )}
+          <p className="text-xs text-[var(--text-muted)]">
+            Stored encrypted. Used automatically the next time you import a PDF
+            for this account.
+          </p>
         </div>
 
         {isCreditCard ? (

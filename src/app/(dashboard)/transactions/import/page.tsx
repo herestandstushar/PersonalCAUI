@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -39,6 +39,8 @@ export default function ImportStatementPage() {
   const [file, setFile] = useState<File | null>(null);
   const [accountId, setAccountId] = useState("");
   const [pdfPassword, setPdfPassword] = useState("");
+  const [savePassword, setSavePassword] = useState(true);
+  const [changePassword, setChangePassword] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [statement, setStatement] = useState<StatementResult | null>(null);
@@ -52,15 +54,24 @@ export default function ImportStatementPage() {
     (statement?.status === "failed" &&
       /password/i.test(statement.error_message || ""));
 
-  // PDFs can auto-detect/create the account; CSV/Excel still need one selected.
   const selectedAccount =
     accountId ||
     (!isPdf
       ? accounts.find((a) => a.is_default)?.id || accounts[0]?.id || ""
       : "");
 
-  const canUpload =
-    !!file && (isPdf || !!selectedAccount);
+  const selectedAccountObj = useMemo(
+    () => accounts.find((a) => a.id === selectedAccount),
+    [accounts, selectedAccount]
+  );
+
+  const hasSavedPassword = useMemo(() => {
+    if (selectedAccountObj?.has_statement_password) return true;
+    // When auto-detecting, any saved password on the user's accounts may unlock the PDF.
+    return isPdf && accounts.some((a) => a.has_statement_password);
+  }, [selectedAccountObj, accounts, isPdf]);
+
+  const canUpload = !!file && (isPdf || !!selectedAccount);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -88,6 +99,8 @@ export default function ImportStatementPage() {
     setError("");
     setStatement(null);
     setPdfPassword("");
+    setChangePassword(false);
+    setSavePassword(true);
     setFile(f);
   };
 
@@ -137,6 +150,7 @@ export default function ImportStatementPage() {
     body.append("file", file);
     if (selectedAccount) body.append("account", selectedAccount);
     if (pdfPassword) body.append("password", pdfPassword);
+    body.append("save_password", savePassword ? "true" : "false");
 
     try {
       const { data } = await api.post<StatementResult>("/statements/", body, {
@@ -156,11 +170,17 @@ export default function ImportStatementPage() {
     setFile(null);
     setStatement(null);
     setPdfPassword("");
+    setChangePassword(false);
+    setSavePassword(true);
     setError("");
   };
 
   const processing =
     statement?.status === "pending" || statement?.status === "processing";
+
+  const showPasswordField =
+    needsPassword &&
+    (!hasSavedPassword || changePassword || /password/i.test(statement?.error_message || ""));
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -187,7 +207,11 @@ export default function ImportStatementPage() {
           name="account"
           required={!isPdf}
           value={accountId}
-          onChange={(e) => setAccountId(e.target.value)}
+          onChange={(e) => {
+            setAccountId(e.target.value);
+            setChangePassword(false);
+            setPdfPassword("");
+          }}
           options={accounts.map((a) => ({ value: a.id, label: a.name }))}
           placeholder={
             isPdf
@@ -199,8 +223,8 @@ export default function ImportStatementPage() {
         />
         {isPdf && (
           <p className="text-xs text-[var(--text-muted)] -mt-3">
-            Leave blank to detect ICICI (and supported banks), create the account
-            automatically, then import transactions.
+            Leave blank to detect ICICI / HDFC, create the account automatically,
+            then import transactions.
           </p>
         )}
 
@@ -308,6 +332,15 @@ export default function ImportStatementPage() {
                         value={pdfPassword}
                         onChange={(e) => setPdfPassword(e.target.value)}
                       />
+                      <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                        <input
+                          type="checkbox"
+                          checked={savePassword}
+                          onChange={(e) => setSavePassword(e.target.checked)}
+                          className="rounded border-[var(--border-default)]"
+                        />
+                        Remember password for this account
+                      </label>
                       <div className="flex flex-wrap gap-2">
                         <Button onClick={upload} loading={uploading}>
                           Unlock and import
@@ -331,17 +364,64 @@ export default function ImportStatementPage() {
               </div>
             ) : (
               <div className="mt-5 space-y-4">
-                {needsPassword && (
-                  <Input
-                    label="PDF password"
-                    name="password"
-                    type="password"
-                    autoComplete="off"
-                    placeholder="Leave blank if the PDF is not locked"
-                    value={pdfPassword}
-                    onChange={(e) => setPdfPassword(e.target.value)}
-                  />
+                {needsPassword && hasSavedPassword && !changePassword && (
+                  <div className="p-3 rounded-xl bg-[var(--surface-hover)] text-sm text-[var(--text-secondary)] flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      Using a saved statement password
+                      {selectedAccountObj?.has_statement_password
+                        ? ` for ${selectedAccountObj.name}`
+                        : ""}
+                      .
+                    </span>
+                    <button
+                      type="button"
+                      className="text-primary-600 dark:text-primary-400 font-medium hover:underline"
+                      onClick={() => setChangePassword(true)}
+                    >
+                      Change password
+                    </button>
+                  </div>
                 )}
+
+                {showPasswordField && (
+                  <>
+                    <Input
+                      label="PDF password"
+                      name="password"
+                      type="password"
+                      autoComplete="off"
+                      placeholder={
+                        hasSavedPassword && changePassword
+                          ? "Enter a new statement password"
+                          : "Leave blank if the PDF is not locked"
+                      }
+                      value={pdfPassword}
+                      onChange={(e) => setPdfPassword(e.target.value)}
+                    />
+                    <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                      <input
+                        type="checkbox"
+                        checked={savePassword}
+                        onChange={(e) => setSavePassword(e.target.checked)}
+                        className="rounded border-[var(--border-default)]"
+                      />
+                      Remember password for next import
+                    </label>
+                    {changePassword && (
+                      <button
+                        type="button"
+                        className="text-xs text-[var(--text-muted)] hover:underline"
+                        onClick={() => {
+                          setChangePassword(false);
+                          setPdfPassword("");
+                        }}
+                      >
+                        Cancel — keep saved password
+                      </button>
+                    )}
+                  </>
+                )}
+
                 <Button
                   className="w-full"
                   onClick={upload}
@@ -365,15 +445,16 @@ export default function ImportStatementPage() {
         </h3>
         <ul className="space-y-2 text-sm text-[var(--text-muted)] list-disc pl-5">
           <li>
-            ICICI Bank PDFs are detected automatically — bank name, account
-            number and transactions are read from the file.
+            ICICI and HDFC Bank PDFs are detected automatically — bank name,
+            account number and transactions are read from the file.
           </li>
           <li>
             If the account doesn&apos;t exist yet, FinSight creates it for you.
           </li>
           <li>
-            Password-protected PDFs are supported — enter the password when
-            prompted.
+            PDF passwords are saved (encrypted) on the account so the next import
+            unlocks automatically. Change them anytime on import or in Edit
+            account.
           </li>
           <li>
             CSV/Excel still work; pick an account first for those formats.

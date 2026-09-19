@@ -12,6 +12,8 @@ export interface Account {
   account_type: AccountType;
   bank_name: string;
   masked_account_number: string;
+  /** True when a PDF statement password is stored (value never returned). */
+  has_statement_password: boolean;
   currency: number;
   currency_detail: Currency | null;
   current_balance: string;
@@ -39,6 +41,8 @@ export interface AccountCreatePayload {
   account_type: AccountType;
   bank_name?: string;
   account_number?: string;
+  statement_password?: string;
+  clear_statement_password?: boolean;
   currency?: number;
   current_balance?: number;
   credit_limit?: number;
