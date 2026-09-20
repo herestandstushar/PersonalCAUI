@@ -44,7 +44,14 @@ export function BrandMark({
   );
 }
 
-export function BrandWordmark({ className }: { className?: string }) {
+export function BrandWordmark({
+  className,
+  onDark = false,
+}: {
+  className?: string;
+  /** Use lighter “fin” for black / dark brand panels. */
+  onDark?: boolean;
+}) {
   return (
     <span
       className={cn(
@@ -52,8 +59,10 @@ export function BrandWordmark({ className }: { className?: string }) {
         className
       )}
     >
-      <span className="text-slate-500 dark:text-slate-400">fin</span>
-      <span className="text-[#5D5FEF]">sight</span>
+      <span className={onDark ? "text-white/70" : "text-slate-500 dark:text-slate-400"}>
+        fin
+      </span>
+      <span className={onDark ? "text-[#8B8DFF]" : "text-[#5D5FEF]"}>sight</span>
     </span>
   );
 }
@@ -68,7 +77,8 @@ export function BrandLogo({
   wordmarkClassName,
   lockup = false,
   lockupWidth = 180,
-}: BrandLogoProps) {
+  onDark = false,
+}: BrandLogoProps & { onDark?: boolean }) {
   if (lockup) {
     return (
       <Image
@@ -85,9 +95,13 @@ export function BrandLogo({
 
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <BrandMark size={size} />
+      <BrandMark
+        size={size}
+        className={onDark ? "text-white" : undefined}
+      />
       {withWordmark && (
         <BrandWordmark
+          onDark={onDark}
           className={cn(
             size >= 40 ? "text-2xl" : size >= 32 ? "text-lg" : "text-base",
             wordmarkClassName

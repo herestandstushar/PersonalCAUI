@@ -56,7 +56,7 @@ export default function LoginPage() {
           className="relative z-10 text-white max-w-md"
         >
           <div className="mb-10">
-            <BrandLogo lockup lockupWidth={280} />
+            <BrandLogo size={48} withWordmark onDark wordmarkClassName="text-3xl" />
           </div>
           <h1 className="text-4xl font-bold leading-tight mb-4">
             Take control of your
