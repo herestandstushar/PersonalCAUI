@@ -209,7 +209,10 @@ export default function ImportStatementPage() {
 
     const body = new FormData();
     body.append("file", file);
-    if (selectedAccount) body.append("account", selectedAccount);
+    // Only send account when the user explicitly picked one — never send "".
+    if (selectedAccount && selectedAccount.trim()) {
+      body.append("account", selectedAccount.trim());
+    }
     if (pdfPassword) body.append("password", pdfPassword);
     body.append("save_password", savePassword ? "true" : "false");
 
@@ -278,7 +281,7 @@ export default function ImportStatementPage() {
       <div className="card p-6 space-y-5">
         <Select
           label={isPdf ? "Account (optional)" : "Import into account"}
-          name="account"
+          name="statement_account"
           required={!isPdf}
           value={accountId}
           onChange={(e) => {
